@@ -189,30 +189,39 @@
 
             try {
                 // Fetch Profile
-                const { data: profile } = await window.supabaseClient
+                const { data: profile, error: profileError } = await window.supabaseClient
                     .from('profiles')
                     .select('*')
                     .eq('id', userId)
-                    .single();
+                    .maybeSingle();
+
+                if (profileError) throw profileError;
 
                 // Fetch Loans
-                const { data: loans } = await window.supabaseClient
+                const { data: loans, error: loansError } = await window.supabaseClient
                     .from('loans')
                     .select('*')
                     .eq('user_id', userId);
 
+                if (loansError) throw loansError;
+
                 // Fetch Expenses
-                const { data: expenses } = await window.supabaseClient
+                const { data: expenses, error: expensesError } = await window.supabaseClient
                     .from('expenses')
                     .select('*')
                     .eq('user_id', userId);
 
+                if (expensesError) throw expensesError;
+
                 if (profile && loans && expenses) {
                     calculateAndRender(profile, loans, expenses);
+                } else {
+                    document.getElementById('metricsGrid').innerHTML = '<p style="color: var(--text-secondary);">Waiting for initial data seed to complete. Please refresh...</p>';
                 }
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
+                document.getElementById('metricsGrid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); background: rgba(255,59,48,0.1);"><strong>Database Error:</strong> ${error.message} <br><br>Have you run the <b>schema.sql</b> script in your Supabase SQL Editor yet?</div>`;
             }
         });
 

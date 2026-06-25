@@ -251,6 +251,7 @@
 
             if (error) {
                 console.error(error);
+                container.innerHTML = `<p style="color: var(--danger); width: 100%;">Database Error: ${error.message} <br><br>Did you run schema.sql?</p>`;
                 return;
             }
 

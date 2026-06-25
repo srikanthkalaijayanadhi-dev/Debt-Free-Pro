@@ -292,6 +292,7 @@
 
             if (error) {
                 console.error(error);
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--danger);">Database Error: ${error.message} <br><br>Did you run schema.sql?</td></tr>`;
                 return;
             }
 
