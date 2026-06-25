@@ -64,21 +64,6 @@
             border-radius: var(--radius-pill);
         }
 
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity var(--transition-fast);
-        }
-        .modal-overlay.active { display: flex; opacity: 1; }
-        .modal-card { width: 100%; max-width: 500px; margin: var(--spacing-md); }
     </style>
 </head>
 <body>
@@ -155,8 +140,9 @@
     <!-- Add Loan Modal -->
     <div class="modal-overlay" id="loanModal">
         <div class="glass-card modal-card">
-            <h2 style="margin-bottom: var(--spacing-lg);">Add New Loan</h2>
+            <h2 id="modalTitle" style="margin-bottom: var(--spacing-lg);">Add New Loan</h2>
             <form id="loanForm">
+                <input type="hidden" id="loanId">
                 <div class="form-group">
                     <label class="form-label">Loan Name</label>
                     <input type="text" class="form-input" id="loanName" required placeholder="e.g. Personal Loan">
@@ -198,7 +184,12 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             const modal = document.getElementById('loanModal');
-            document.getElementById('addLoanBtn').addEventListener('click', () => modal.classList.add('active'));
+            document.getElementById('addLoanBtn').addEventListener('click', () => {
+                document.getElementById('loanForm').reset();
+                document.getElementById('loanId').value = '';
+                document.getElementById('modalTitle').textContent = 'Add New Loan';
+                modal.classList.add('active');
+            });
             document.getElementById('cancelModalBtn').addEventListener('click', () => modal.classList.remove('active'));
 
             await fetchLoans();
@@ -210,7 +201,8 @@
 
                 const { data: { session } } = await window.supabaseClient.auth.getSession();
                 
-                const newLoan = {
+                const loanId = document.getElementById('loanId').value;
+                const loanData = {
                     user_id: session.user.id,
                     name: document.getElementById('loanName').value,
                     type: document.getElementById('loanType').value,
@@ -220,13 +212,22 @@
                     status: 'Active'
                 };
 
-                const { error } = await window.supabaseClient.from('loans').insert([newLoan]);
+                let error;
+                if (loanId) {
+                    const res = await window.supabaseClient.from('loans').update(loanData).eq('id', loanId);
+                    error = res.error;
+                } else {
+                    const res = await window.supabaseClient.from('loans').insert([loanData]);
+                    error = res.error;
+                }
                 
                 if (error) {
                     alert(error.message);
                 } else {
                     modal.classList.remove('active');
                     document.getElementById('loanForm').reset();
+                    document.getElementById('loanId').value = '';
+                    document.getElementById('modalTitle').textContent = 'Add New Loan';
                     fetchLoans();
                 }
             });
@@ -292,6 +293,9 @@
 
                     <div style="margin-top: auto; padding-top: var(--spacing-md); display: flex; gap: 8px;">
                         <button class="btn btn-outline" style="flex:1; padding: 6px; font-size: 0.85rem;" onclick="logPayment('${loan.id}', ${loan.emi_amount})">Mark Paid</button>
+                        <button class="btn btn-outline" style="padding: 6px; font-size: 0.85rem;" onclick="editLoan('${loan.id}')">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        </button>
                         <button class="btn btn-outline" style="padding: 6px; font-size: 0.85rem;" onclick="deleteLoan('${loan.id}')">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                         </button>
@@ -299,6 +303,25 @@
                 </div>
             `}).join('');
         }
+
+        window.editLoan = async (id) => {
+            if (!window.supabaseClient) return;
+            const { data, error } = await window.supabaseClient.from('loans').select('*').eq('id', id).single();
+            if (error) {
+                alert(error.message);
+                return;
+            }
+            
+            document.getElementById('loanId').value = data.id;
+            document.getElementById('loanName').value = data.name;
+            document.getElementById('loanType').value = data.type;
+            document.getElementById('loanEmi').value = data.emi_amount;
+            document.getElementById('loanPrincipal').value = data.principal_amount;
+            document.getElementById('loanPriority').value = data.priority;
+            
+            document.getElementById('modalTitle').textContent = 'Edit Loan';
+            document.getElementById('loanModal').classList.add('active');
+        };
 
         window.deleteLoan = async (id) => {
             if (confirm('Are you sure you want to delete this loan?')) {

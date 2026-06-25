@@ -6,6 +6,7 @@
     <title>Dashboard - Debt Free Pro</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .dashboard-content {
             animation: fadeIn 0.5s ease-out;
@@ -140,6 +141,7 @@
                 <h1 class="topbar-title">Overview</h1>
                 
                 <div class="topbar-actions">
+                    <button class="btn btn-primary" id="addLoanBtn">+ Add Loan</button>
                     <label class="switch" style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 0.8rem; color: var(--text-secondary);">Dark</span>
                         <input type="checkbox" id="themeToggle" style="margin-top:2px;">
@@ -153,17 +155,40 @@
 
             <div class="dashboard-content animate-slide-up">
                 
-                <!-- 19 Requested Default Widgets -->
+                <!-- 1. Loan Summary Widget -->
+                <h2 style="margin-top: 0; margin-bottom: var(--spacing-md);">Loan Summary</h2>
                 <div class="metrics-grid" id="metricsGrid">
-                    <!-- Populated by JS -->
                     <p style="color: var(--text-secondary);">Analyzing your financial data...</p>
+                </div>
+
+                <!-- 2. Charts Section -->
+                <h2 style="margin-top: var(--spacing-xl); margin-bottom: var(--spacing-md);">Dashboard Analytics</h2>
+                <div class="dashboard-grid">
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: var(--spacing-sm);">Loan Distribution</h3>
+                        <div class="chart-container" style="height: 250px;">
+                            <canvas id="loanDistributionChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: var(--spacing-sm);">Progress Overview</h3>
+                        <div class="chart-container" style="height: 250px;">
+                            <canvas id="progressChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Loan Progress Overview -->
+                <h2 style="margin-top: var(--spacing-xl); margin-bottom: var(--spacing-md);">Loan Progress Overview</h2>
+                <div class="loan-progress-grid" id="loanProgressGrid">
+                    <p style="color: var(--text-secondary);">Loading loan portfolio...</p>
                 </div>
 
                 <!-- AI Financial Advisor -->
                 <div class="ai-advisor-panel">
                     <h3>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                        AI Financial Advisor
+                        AI Financial Insights
                     </h3>
                     <ul class="ai-list" id="aiRecommendations">
                         <li>Loading recommendations...</li>
@@ -174,12 +199,108 @@
         </main>
     </div>
 
+    <!-- Modals -->
+    <div class="modal-overlay" id="loanModal">
+        <div class="glass-card modal-card">
+            <h2 id="modalTitle" style="margin-bottom: var(--spacing-lg);">Edit Loan</h2>
+            <form id="loanForm">
+                <input type="hidden" id="loanId">
+                <div class="form-group">
+                    <label class="form-label">Loan Name</label>
+                    <input type="text" class="form-input" id="loanName" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">EMI Type</label>
+                    <select class="form-input" id="loanType" required>
+                        <option value="monthly">Monthly</option>
+                        <option value="daily">Daily Finance</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">EMI / Daily Amount (₹)</label>
+                    <input type="number" class="form-input" id="loanEmi" required min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Original Principal / Total Loan</label>
+                    <input type="number" class="form-input" id="loanPrincipal" required min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Priority</label>
+                    <select class="form-input" id="loanPriority">
+                        <option value="High">High</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xl);">
+                    <button type="button" class="btn btn-outline" style="flex:1;" id="cancelModalBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex:1;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="supabase/config.js"></script>
     <script src="assets/js/main.js"></script>
     <script src="supabase/database.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
+        let loanDistributionChartInstance = null;
+        let progressChartInstance = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchDashboardData();
+            
+            const modal = document.getElementById('loanModal');
+            if (document.getElementById('cancelModalBtn')) {
+                document.getElementById('cancelModalBtn').addEventListener('click', () => modal.classList.remove('active'));
+            }
+
+            if (document.getElementById('addLoanBtn')) {
+                document.getElementById('addLoanBtn').addEventListener('click', () => {
+                    document.getElementById('loanForm').reset();
+                    document.getElementById('loanId').value = '';
+                    document.getElementById('modalTitle').textContent = 'Add New Loan';
+                    modal.classList.add('active');
+                });
+            }
+
+            if (document.getElementById('loanForm')) {
+                document.getElementById('loanForm').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!window.supabaseClient) return alert('Supabase not configured.');
+
+                    const { data: { session } } = await window.supabaseClient.auth.getSession();
+                    const loanId = document.getElementById('loanId').value;
+                    const loanData = {
+                        user_id: session.user.id,
+                        name: document.getElementById('loanName').value,
+                        type: document.getElementById('loanType').value,
+                        emi_amount: document.getElementById('loanEmi').value,
+                        principal_amount: document.getElementById('loanPrincipal').value || 0,
+                        priority: document.getElementById('loanPriority').value,
+                    };
+
+                    let error;
+                    if (loanId) {
+                        const res = await window.supabaseClient.from('loans').update(loanData).eq('id', loanId);
+                        error = res.error;
+                    } else {
+                        const res = await window.supabaseClient.from('loans').insert([{...loanData, status: 'Active'}]);
+                        error = res.error;
+                    }
+                    
+                    if (error) {
+                        alert(error.message);
+                    } else {
+                        modal.classList.remove('active');
+                        fetchDashboardData();
+                    }
+                });
+            }
+        });
+
+        async function fetchDashboardData() {
             if (!window.supabaseClient) return;
 
             const { data: { session } } = await window.supabaseClient.auth.getSession();
@@ -188,220 +309,298 @@
             const userId = session.user.id;
 
             try {
-                // Fetch Profile
-                const { data: profile, error: profileError } = await window.supabaseClient
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', userId)
-                    .maybeSingle();
-
-                if (profileError) throw profileError;
-
-                // Fetch Loans
-                const { data: loans, error: loansError } = await window.supabaseClient
-                    .from('loans')
-                    .select('*')
-                    .eq('user_id', userId);
-
-                if (loansError) throw loansError;
-
-                // Fetch Expenses
-                const { data: expenses, error: expensesError } = await window.supabaseClient
-                    .from('expenses')
-                    .select('*')
-                    .eq('user_id', userId);
-
-                if (expensesError) throw expensesError;
+                const { data: profile } = await window.supabaseClient.from('profiles').select('*').eq('id', userId).maybeSingle();
+                const { data: loans } = await window.supabaseClient.from('loans').select('*').eq('user_id', userId);
+                const { data: expenses } = await window.supabaseClient.from('expenses').select('*').eq('user_id', userId);
 
                 if (profile && loans && expenses) {
                     calculateAndRender(profile, loans, expenses);
                 } else {
-                    document.getElementById('metricsGrid').innerHTML = '<p style="color: var(--text-secondary);">Waiting for initial data seed to complete. Please refresh...</p>';
+                    document.getElementById('metricsGrid').innerHTML = '<p>Waiting for data...</p>';
                 }
-
             } catch (error) {
-                console.error('Error fetching dashboard data:', error);
-                document.getElementById('metricsGrid').innerHTML = `<div style="grid-column: 1/-1; padding: 20px; border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); background: rgba(255,59,48,0.1);"><strong>Database Error:</strong> ${error.message} <br><br>Have you run the <b>schema.sql</b> script in your Supabase SQL Editor yet?</div>`;
+                console.error(error);
             }
-        });
+        }
+
+        window.editLoan = async (id) => {
+            if (!window.supabaseClient) return;
+            const { data, error } = await window.supabaseClient.from('loans').select('*').eq('id', id).single();
+            if (error) return alert(error.message);
+            
+            document.getElementById('loanId').value = data.id;
+            document.getElementById('loanName').value = data.name;
+            document.getElementById('loanType').value = data.type;
+            document.getElementById('loanEmi').value = data.emi_amount;
+            document.getElementById('loanPrincipal').value = data.original_amount || data.principal_amount; // Use original if available
+            document.getElementById('loanPriority').value = data.priority;
+            
+            document.getElementById('loanModal').classList.add('active');
+        };
+
+        window.logPayment = async (loanId, amount) => {
+            if (!window.supabaseClient) return;
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            
+            const { error } = await window.supabaseClient.from('daily_finance_logs').insert([{
+                user_id: session.user.id,
+                loan_id: loanId,
+                amount_paid: amount
+            }]);
+
+            // For demo purposes, we also artificially update the loan's amount_paid directly 
+            const { data: currentLoan } = await window.supabaseClient.from('loans').select('amount_paid').eq('id', loanId).single();
+            if (currentLoan) {
+                await window.supabaseClient.from('loans').update({ amount_paid: Number(currentLoan.amount_paid || 0) + Number(amount) }).eq('id', loanId);
+            }
+
+            if (error) alert('Error logging payment: ' + error.message);
+            else fetchDashboardData(); // Auto update without refresh
+        };
 
         function calculateAndRender(profile, loans, expenses) {
-            // 1. Convert Loans
-            let monthlyLoanPayments = 0;
-            let dailyLoanPayments = 0;
             let totalActiveLoans = 0;
-            let highestDailyLoan = null;
-
-            let totalOutstandingDebt = 0;
             let totalOriginalAmount = 0;
             let totalAmountPaid = 0;
+            let totalOutstandingDebt = 0;
+            let monthlyLoanPayments = 0;
+            let dailyLoanPayments = 0;
 
-            let homeLoan = null;
-            let goldLoan = null;
-            let bharatPeLoan = null;
-            let pandiyanLoan = null;
+            let loanDistributionLabels = [];
+            let loanDistributionData = [];
+            let loanDistributionColors = [];
 
-            loans.forEach(loan => {
-                if (loan.status === 'Active') {
-                    totalActiveLoans++;
-                    let amt = Number(loan.emi_amount) || 0;
-                    
-                    let original = Number(loan.original_amount) || 0;
-                    let outstanding = Number(loan.outstanding_balance) || 0;
-                    let paid = Number(loan.amount_paid) || 0;
-                    let down = Number(loan.down_payment) || 0;
-                    let monthsPaid = Number(loan.months_paid) || 0;
-
-                    // Fallback calculations for the UI display
-                    if (original > 0 && outstanding === 0 && (paid > 0 || (monthsPaid > 0 && amt > 0))) {
-                        let totalPaid = paid + down + (monthsPaid * amt);
-                        outstanding = original - totalPaid;
-                    }
-
-                    // For AI and Progress
-                    if (loan.name.includes('Home Loan')) homeLoan = { ...loan, outstanding };
-                    if (loan.name.includes('Gold Loan')) goldLoan = { ...loan, outstanding };
-                    if (loan.name.includes('BharatPe')) bharatPeLoan = { ...loan, outstanding };
-                    if (loan.name.includes('Pandiyan')) pandiyanLoan = { ...loan, outstanding };
-
-                    totalOutstandingDebt += outstanding;
-                    totalOriginalAmount += original;
-                    
-                    // Track amount paid
-                    let currentLoanPaid = paid + down;
-                    if (paid === 0 && monthsPaid > 0) currentLoanPaid += (monthsPaid * amt);
-                    totalAmountPaid += currentLoanPaid;
-
-                    if (loan.type === 'daily') {
-                        dailyLoanPayments += amt;
-                        monthlyLoanPayments += (amt * 30);
-                        
-                        if (!highestDailyLoan || amt > Number(highestDailyLoan.emi_amount)) {
-                            highestDailyLoan = loan;
-                        }
-                    } else {
-                        monthlyLoanPayments += amt;
-                    }
-                }
-            });
-
-            // 2. Convert Expenses
-            let monthlyExpenses = 0;
-            let todayExpense = 0;
-
-            expenses.forEach(exp => {
-                let amt = Number(exp.amount);
-                if (exp.category === 'Daily Expenses' || exp.notes?.includes('Daily')) {
-                    todayExpense += amt;
-                    monthlyExpenses += (amt * 30);
-                } else {
-                    monthlyExpenses += amt;
-                }
-            });
-
-            // 3. Profile Data
-            const monthlyIncome = Number(profile.monthly_income) || 0;
-
-            // 4. Derived Calculations
-            const totalMonthlyOutflow = monthlyExpenses + monthlyLoanPayments;
-            const remainingMonthlyCash = monthlyIncome > 0 ? (monthlyIncome - totalMonthlyOutflow) : 0; 
-            const cashFlow = monthlyIncome > 0 ? remainingMonthlyCash : -totalMonthlyOutflow;
-            
-            const debtRatio = monthlyIncome > 0 ? ((monthlyLoanPayments / monthlyIncome) * 100).toFixed(1) : 0;
-            const savingsRatio = monthlyIncome > 0 ? ((remainingMonthlyCash / monthlyIncome) * 100).toFixed(1) : 0;
-            
-            // Health Score: Base 100 - (DebtRatio) + Savings Ratio/2
-            let financialHealthScore = 100 - Number(debtRatio) + (Number(savingsRatio)/2);
-            if (monthlyIncome === 0) financialHealthScore = 40; // Default for missing income
-            financialHealthScore = Math.max(0, Math.min(100, financialHealthScore)).toFixed(0);
-
-            // Progress Calculations
-            const calcProgress = (loan) => loan && loan.original_amount > 0 ? (((loan.original_amount - loan.outstanding) / loan.original_amount) * 100).toFixed(1) + '%' : '0%';
-            
-            let homeLoanProgress = calcProgress(homeLoan);
-            let goldLoanProgress = calcProgress(goldLoan);
-            let bharatPeProgress = calcProgress(bharatPeLoan);
-            let pandiyanProgress = calcProgress(pandiyanLoan);
-            let totalDebtFreeProgress = totalOriginalAmount > 0 ? ((totalOriginalAmount - totalOutstandingDebt) / totalOriginalAmount * 100).toFixed(1) + '%' : '0%';
-
-            // Render Widgets
-            const metrics = [
-                { title: "Total Outstanding Debt", value: formatCurrency(totalOutstandingDebt), class: "metric-danger" },
-                { title: "Total Amount Already Paid", value: formatCurrency(totalAmountPaid), class: "metric-success" },
-                { title: "Remaining Loan Balance", value: formatCurrency(totalOutstandingDebt), class: "metric-danger" },
-                { title: "Home Loan Progress", value: homeLoanProgress, class: "metric-highlight" },
-                { title: "Gold Loan Status", value: goldLoanProgress, class: "metric-highlight" },
-                { title: "BharatPe Progress", value: bharatPeProgress, class: "metric-highlight" },
-                { title: "Pandiyan Finance Progress", value: pandiyanProgress, class: "metric-highlight" },
-                { title: "Today's Total Daily Payment", value: formatCurrency(dailyLoanPayments), class: "metric-accent" },
-                { title: "Monthly EMI Total", value: formatCurrency(monthlyLoanPayments), class: "metric-danger" },
-                { title: "Financial Health Score", value: financialHealthScore + "/100", class: "metric-highlight" },
-                { title: "Debt-Free Progress", value: totalDebtFreeProgress, class: "metric-success" },
-                { title: "Monthly Cash Flow", value: formatCurrency(cashFlow), class: cashFlow >= 0 ? "metric-success" : "metric-danger" },
-                { title: "High Priority Loans", value: loans.filter(l => l.priority === 'Very High' || l.priority === 'High').length, class: "metric-danger" }
+            const colorPalette = [
+                '#0052FF', '#00C853', '#FF9100', '#FF3B30', '#8A2BE2', '#00BCD4', '#E91E63', '#4CAF50', '#FFC107', '#9C27B0'
             ];
 
-            const grid = document.getElementById('metricsGrid');
-            grid.innerHTML = metrics.map(m => `
-                <div class="metric-card">
-                    <div class="metric-title">${m.title}</div>
-                    <div class="metric-value ${m.class}">${m.value}</div>
-                </div>
-            `).join('');
+            const processedLoans = loans.filter(l => l.status === 'Active').map((loan, index) => {
+                totalActiveLoans++;
+                
+                let original = Number(loan.original_amount) || Number(loan.principal_amount) || 0;
+                let amt = Number(loan.emi_amount) || 0;
+                let paid = Number(loan.amount_paid) || 0;
+                let down = Number(loan.down_payment) || 0;
+                let monthsPaid = Number(loan.months_paid) || 0;
 
-            // Render AI Advisor
-            const aiList = document.getElementById('aiRecommendations');
+                let totalPaidThisLoan = paid + down + (monthsPaid * amt);
+                let outstanding = Number(loan.outstanding_balance) || 0;
+                
+                if (original > 0 && outstanding === 0) {
+                    outstanding = original - totalPaidThisLoan;
+                } else if (original === 0 && outstanding > 0) {
+                    original = outstanding + totalPaidThisLoan;
+                }
+                
+                if (outstanding < 0) outstanding = 0;
+
+                totalOriginalAmount += original;
+                totalAmountPaid += totalPaidThisLoan;
+                totalOutstandingDebt += outstanding;
+
+                if (loan.type === 'daily') {
+                    dailyLoanPayments += amt;
+                    monthlyLoanPayments += (amt * 30);
+                } else {
+                    monthlyLoanPayments += amt;
+                }
+
+                let progressPct = original > 0 ? (totalPaidThisLoan / original) * 100 : 0;
+                progressPct = Math.min(100, Math.max(0, progressPct));
+
+                loanDistributionLabels.push(loan.name);
+                loanDistributionData.push(outstanding);
+                loanDistributionColors.push(colorPalette[index % colorPalette.length]);
+
+                return {
+                    ...loan,
+                    original,
+                    totalPaidThisLoan,
+                    outstanding,
+                    progressPct,
+                    color: colorPalette[index % colorPalette.length]
+                };
+            });
+
+            // Summary Widget
+            let overallProgress = totalOriginalAmount > 0 ? (totalAmountPaid / totalOriginalAmount) * 100 : 0;
+            
+            document.getElementById('metricsGrid').innerHTML = `
+                <div class="metric-card"><div class="metric-title">Total Loans</div><div class="metric-value metric-highlight">${loans.length}</div></div>
+                <div class="metric-card"><div class="metric-title">Active Loans</div><div class="metric-value metric-success">${totalActiveLoans}</div></div>
+                <div class="metric-card"><div class="metric-title">Total Loan Amount</div><div class="metric-value metric-highlight">${formatCurrency(totalOriginalAmount)}</div></div>
+                <div class="metric-card"><div class="metric-title">Total Amount Paid</div><div class="metric-value metric-success">${formatCurrency(totalAmountPaid)}</div></div>
+                <div class="metric-card"><div class="metric-title">Outstanding Balance</div><div class="metric-value metric-danger">${formatCurrency(totalOutstandingDebt)}</div></div>
+                <div class="metric-card"><div class="metric-title">Overall Debt Progress</div><div class="metric-value metric-success">${overallProgress.toFixed(1)}%</div></div>
+            `;
+
+            // Loan Cards
+            const loanGrid = document.getElementById('loanProgressGrid');
+            if (processedLoans.length === 0) {
+                loanGrid.innerHTML = '<p style="color: var(--text-secondary);">No active loans found. Good job!</p>';
+            } else {
+                loanGrid.innerHTML = processedLoans.map(loan => {
+                    const offset = 339.292 - (339.292 * loan.progressPct / 100);
+                    let icon = '💳';
+                    if (loan.name.toLowerCase().includes('home')) icon = '🏠';
+                    else if (loan.name.toLowerCase().includes('gold')) icon = '🥇';
+                    else if (loan.name.toLowerCase().includes('camera')) icon = '📷';
+                    else if (loan.name.toLowerCase().includes('father') || loan.name.toLowerCase().includes('mother')) icon = '👨‍👩‍👧';
+                    else if (loan.type === 'daily') icon = '💵';
+                    
+                    return `
+                    <div class="glass-card detailed-loan-card">
+                        <div class="loan-header">
+                            <div class="loan-icon">${icon}</div>
+                            <div style="flex:1;">
+                                <div class="loan-name">${loan.name}</div>
+                                <div style="display: flex; gap: 8px; margin-top: 4px;">
+                                    <span class="badge-status badge-active">Active</span>
+                                    ${loan.priority ? `<span class="badge-priority priority-${loan.priority.toLowerCase()}">${loan.priority}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="circular-progress-container">
+                            <svg class="circular-progress" viewBox="0 0 120 120">
+                                <circle class="bg" cx="60" cy="60" r="54"></circle>
+                                <circle class="fg" cx="60" cy="60" r="54" style="stroke-dashoffset: ${offset}; stroke: ${loan.color};"></circle>
+                            </svg>
+                            <div class="circular-progress-text">
+                                <div class="percentage">${loan.progressPct.toFixed(0)}%</div>
+                            </div>
+                        </div>
+
+                        <div class="linear-progress-container">
+                            <div class="linear-progress-bar" style="width: ${loan.progressPct}%; background: ${loan.color};"></div>
+                        </div>
+
+                        <div class="loan-stats-grid">
+                            <div class="loan-stat-item">
+                                <span class="loan-stat-label">Original Amount</span>
+                                <span class="loan-stat-value">${formatCurrency(loan.original)}</span>
+                            </div>
+                            <div class="loan-stat-item">
+                                <span class="loan-stat-label">Outstanding</span>
+                                <span class="loan-stat-value" style="color: var(--danger)">${formatCurrency(loan.outstanding)}</span>
+                            </div>
+                            <div class="loan-stat-item">
+                                <span class="loan-stat-label">Amount Paid</span>
+                                <span class="loan-stat-value" style="color: var(--secondary)">${formatCurrency(loan.totalPaidThisLoan)}</span>
+                            </div>
+                            <div class="loan-stat-item">
+                                <span class="loan-stat-label">${loan.type === 'daily' ? 'Daily Payment' : 'Monthly EMI'}</span>
+                                <span class="loan-stat-value">${formatCurrency(loan.emi_amount)}</span>
+                            </div>
+                        </div>
+
+                        <div class="action-row">
+                            <button class="btn btn-outline" onclick="editLoan('${loan.id}')">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                Edit
+                            </button>
+                            <button class="btn btn-primary" onclick="logPayment('${loan.id}', ${loan.emi_amount})">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                Add Payment
+                            </button>
+                        </div>
+                    </div>
+                `}).join('');
+            }
+
+            // Charts
+            renderCharts(loanDistributionLabels, loanDistributionData, loanDistributionColors, processedLoans);
+
+            // AI Advisor
             let estimatedMonths = totalOutstandingDebt / (monthlyLoanPayments || 1);
             let targetDate = new Date();
             targetDate.setMonth(targetDate.getMonth() + estimatedMonths);
-
+            
+            const aiList = document.getElementById('aiRecommendations');
             let warnings = [];
-            
-            // AI Recommendations:
-            // 1. Which loan should be closed first
-            if (highestDailyLoan) {
-                warnings.push(`<strong>${highestDailyLoan.name}</strong> costs the most daily (${formatCurrency(highestDailyLoan.emi_amount)}/day) and should be closed first. Closing this frees up ${formatCurrency(highestDailyLoan.emi_amount * 30)} every month.`);
+            if (processedLoans.length > 0) {
+                warnings.push(`At your current payment rate, you will be completely debt-free by <strong>${targetDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</strong>.`);
+                warnings.push(`Your total monthly EMI commitment is <strong>${formatCurrency(monthlyLoanPayments)}</strong>.`);
+                if (dailyLoanPayments > 0) warnings.push(`You are paying <strong>${formatCurrency(dailyLoanPayments)}</strong> every single day in daily finance.`);
+            } else {
+                warnings.push("You are completely debt free! Keep up the great financial habits.");
             }
-
-            // 2. Highest financial burden
-            let highestBurdenLoan = loans.reduce((max, loan) => (Number(loan.outstanding_balance) > Number(max.outstanding_balance) ? loan : max), loans[0]);
-            if (highestBurdenLoan) {
-                warnings.push(`<strong>${highestBurdenLoan.name}</strong> has the highest overall financial burden (${formatCurrency(highestBurdenLoan.outstanding_balance)} outstanding).`);
-            }
-
-            // 3. Most expensive monthly
-            let highestMonthlyEmi = loans.reduce((max, loan) => {
-                let monthlyCost = loan.type === 'daily' ? Number(loan.emi_amount) * 30 : Number(loan.emi_amount);
-                let maxCost = max.type === 'daily' ? Number(max.emi_amount) * 30 : Number(max.emi_amount);
-                return monthlyCost > maxCost ? loan : max;
-            }, loans[0]);
-            
-            if (highestMonthlyEmi) {
-                let monthlyCost = highestMonthlyEmi.type === 'daily' ? Number(highestMonthlyEmi.emi_amount) * 30 : Number(highestMonthlyEmi.emi_amount);
-                warnings.push(`<strong>${highestMonthlyEmi.name}</strong> costs the most every month at ${formatCurrency(monthlyCost)}.`);
-            }
-
-            // 4. Extra payment / Savings required
-            if (cashFlow < 0 && monthlyIncome > 0) {
-                warnings.push(`You currently have a negative cash flow. You need to reduce your spending by at least <strong>${formatCurrency(Math.abs(cashFlow))}</strong> just to break even.`);
-            } else if (cashFlow > 0) {
-                warnings.push(`Adding an extra payment of <strong>${formatCurrency(cashFlow * 0.5)}</strong> (50% of your cash flow) towards your highest priority loan will significantly reduce your debt timeline.`);
-                
-                let fastMonths = totalOutstandingDebt / (monthlyLoanPayments + (cashFlow * 0.5));
-                warnings.push(`By doing this, you can become completely debt-free ${Math.ceil(estimatedMonths - fastMonths)} months sooner!`);
-            }
-
-            // 5. Estimated debt-free date
-            if (estimatedMonths < 1200) {
-                warnings.push(`At your current rate, your estimated debt-free date is <strong>${targetDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</strong>.`);
-            }
-
-            // 6. Spending reduction suggestions
-            if (todayExpense > 1500) {
-                warnings.push(`Your average daily expense (${formatCurrency(todayExpense)}) is very high. Cutting this by 30% will instantly generate ${formatCurrency(todayExpense * 0.3 * 30)} in extra monthly savings.`);
-            }
-
             aiList.innerHTML = warnings.map(w => `<li>${w}</li>`).join('');
+        }
+
+        function renderCharts(labels, data, colors, loans) {
+            // Destroy existing charts to prevent hover glitch on re-render
+            if (loanDistributionChartInstance) loanDistributionChartInstance.destroy();
+            if (progressChartInstance) progressChartInstance.destroy();
+
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const textColor = isDark ? '#A1A1A6' : '#86868B';
+            const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
+            Chart.defaults.color = textColor;
+            Chart.defaults.font.family = getComputedStyle(document.documentElement).getPropertyValue('--font-family').trim();
+
+            const ctx1 = document.getElementById('loanDistributionChart');
+            if (ctx1 && data.length > 0 && data.some(d => d > 0)) {
+                loanDistributionChartInstance = new Chart(ctx1, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: data,
+                            backgroundColor: colors,
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: { position: 'right', labels: { color: textColor } }
+                        }
+                    }
+                });
+            } else if (ctx1) {
+                const parent = ctx1.parentElement;
+                parent.innerHTML = '<p style="color: var(--text-secondary); text-align: center; margin-top: 100px;">No outstanding debt to display.</p><canvas id="loanDistributionChart" style="display:none;"></canvas>';
+            }
+
+            const ctx2 = document.getElementById('progressChart');
+            if (ctx2 && loans.length > 0) {
+                progressChartInstance = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: loans.map(l => l.name),
+                        datasets: [
+                            {
+                                label: 'Amount Paid',
+                                data: loans.map(l => l.totalPaidThisLoan),
+                                backgroundColor: '#00C853',
+                                borderRadius: 4
+                            },
+                            {
+                                label: 'Outstanding Balance',
+                                data: loans.map(l => l.outstanding),
+                                backgroundColor: '#FF3B30',
+                                borderRadius: 4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { stacked: true, grid: { display: false }, ticks: { color: textColor } },
+                            y: { stacked: true, border: { display: false }, grid: { color: gridColor }, ticks: { color: textColor } }
+                        },
+                        plugins: {
+                            legend: { labels: { color: textColor } }
+                        }
+                    }
+                });
+            }
         }
     </script>
 </body>
