@@ -3,8 +3,8 @@
 // ==========================================================================
 
 // Replace these with your actual Supabase Project URL and Anon Key
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://gpsipuezibuxglhvudrl.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_qx5Ldrz6T5YiT8dLDGhYiA_mtp4MIsc';
 
 // Initialize Supabase Client
 // We assume the Supabase library is loaded via CDN in the HTML file
