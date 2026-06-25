@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reports & Charts - Debt Free Pro</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .page-content { animation: fadeIn 0.5s ease-out; }
+        
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: var(--spacing-lg);
+            margin-top: var(--spacing-lg);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">Debt Free <span class="text-gradient">Pro</span></div>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="dashboard.html" class="nav-link">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="income.html" class="nav-link">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                        Income
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="expenses.html" class="nav-link">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>
+                        Expenses
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="loans.html" class="nav-link">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M11.5 1L2 6v2h19V6l-9.5-5zM5 22h14v-2H5v2zm7-11c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                        Loans
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="reports.html" class="nav-link active">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                        Reports
+                    </a>
+                </li>
+                <li class="nav-item" style="margin-top: 40px;">
+                    <a href="#" class="nav-link" onclick="logout()">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                        Logout
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+                <h1 class="topbar-title">Analytics & Reports</h1>
+                
+                <div class="topbar-actions">
+                    <button class="btn btn-outline" onclick="window.print()">Export PDF</button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="chart-grid">
+                    <!-- Cash Flow Chart -->
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: var(--spacing-md);">Income vs Expenses</h3>
+                        <div class="chart-container">
+                            <canvas id="cashflowChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Expense Breakdown Chart -->
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: var(--spacing-md);">Expense Breakdown</h3>
+                        <div class="chart-container">
+                            <canvas id="expenseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="margin-top: var(--spacing-lg);">
+                    <h3 style="margin-bottom: var(--spacing-md);">Debt Reduction Projection</h3>
+                    <div class="chart-container" style="height: 350px;">
+                        <canvas id="debtProjectionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="supabase/config.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script>
+        // Chart Config Default
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.color = '#86868B';
+        Chart.defaults.scale.grid.color = 'rgba(0,0,0,0.05)';
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!window.supabaseClient) return;
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) return;
+
+            const userId = session.user.id;
+
+            try {
+                // Fetch Data for Charts
+                const [incomesRes, expensesRes] = await Promise.all([
+                    window.supabaseClient.from('incomes').select('amount, category').eq('user_id', userId),
+                    window.supabaseClient.from('expenses').select('amount, category').eq('user_id', userId)
+                ]);
+
+                const incomes = incomesRes.data || [];
+                const expenses = expensesRes.data || [];
+
+                const totalIncome = incomes.reduce((acc, curr) => acc + Number(curr.amount), 0);
+                const totalExpense = expenses.reduce((acc, curr) => acc + Number(curr.amount), 0);
+
+                // 1. Cashflow Chart (Doughnut)
+                const ctxCashflow = document.getElementById('cashflowChart').getContext('2d');
+                new Chart(ctxCashflow, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Total Income', 'Total Expenses'],
+                        datasets: [{
+                            data: [totalIncome, totalExpense],
+                            backgroundColor: ['#00C853', '#FF3B30'],
+                            borderWidth: 0,
+                            cutout: '75%'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom' }
+                        }
+                    }
+                });
+
+                // 2. Expense Category Breakdown (Bar)
+                const expCategories = {};
+                expenses.forEach(exp => {
+                    expCategories[exp.category] = (expCategories[exp.category] || 0) + Number(exp.amount);
+                });
+
+                const ctxExpense = document.getElementById('expenseChart').getContext('2d');
+                new Chart(ctxExpense, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(expCategories),
+                        datasets: [{
+                            label: 'Amount (₹)',
+                            data: Object.values(expCategories),
+                            backgroundColor: '#FF9100',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        }
+                    }
+                });
+
+                // 3. Debt Projection (Line) - Simulated
+                const ctxDebt = document.getElementById('debtProjectionChart').getContext('2d');
+                
+                // Simulated projection over 12 months based on user's high EMI
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                let currentDebt = 4500000; // Simulated start
+                const projectionData = months.map(() => {
+                    const val = currentDebt;
+                    currentDebt -= 185000; // Monthly total EMI roughly
+                    return val > 0 ? val : 0;
+                });
+
+                new Chart(ctxDebt, {
+                    type: 'line',
+                    data: {
+                        labels: months,
+                        datasets: [{
+                            label: 'Outstanding Debt',
+                            data: projectionData,
+                            borderColor: '#0052FF',
+                            backgroundColor: 'rgba(0, 82, 255, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: { beginAtZero: true }
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error generating charts:", error);
+            }
+        });
+    </script>
+</body>
+</html>

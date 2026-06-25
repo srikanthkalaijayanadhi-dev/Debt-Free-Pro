@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Settings - Debt Free Pro</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .page-content { animation: fadeIn 0.5s ease-out; }
+        
+        .settings-section {
+            padding: var(--spacing-lg) 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .settings-section:last-child {
+            border-bottom: none;
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .settings-info h4 {
+            margin-bottom: 4px;
+        }
+        
+        .settings-info p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">Debt Free <span class="text-gradient">Pro</span></div>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="dashboard.html" class="nav-link">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="income.html" class="nav-link">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                        Income
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="expenses.html" class="nav-link">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M11 15h2v2h-2zm0-8h2v6h-2zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>
+                        Expenses
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="loans.html" class="nav-link">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M11.5 1L2 6v2h19V6l-9.5-5zM5 22h14v-2H5v2zm7-11c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                        Loans
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="reports.html" class="nav-link">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                        Reports
+                    </a>
+                </li>
+                <li class="nav-item" style="margin-top: 40px;">
+                    <a href="#" class="nav-link" onclick="logout()">
+                        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+                        Logout
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+                <h1 class="topbar-title">Settings</h1>
+            </header>
+
+            <div class="page-content">
+                <div class="glass-card" style="max-width: 800px;">
+                    
+                    <!-- Profile Section -->
+                    <div class="settings-section">
+                        <h3 style="margin-bottom: var(--spacing-md);">Profile Information</h3>
+                        <div class="settings-row">
+                            <div class="settings-info">
+                                <h4>Account Email</h4>
+                                <p id="settingEmail">Loading...</p>
+                            </div>
+                            <button class="btn btn-outline" disabled>Change</button>
+                        </div>
+                    </div>
+
+                    <!-- Preferences Section -->
+                    <div class="settings-section">
+                        <h3 style="margin-bottom: var(--spacing-md);">Preferences</h3>
+                        <div class="settings-row">
+                            <div class="settings-info">
+                                <h4>Dark Mode</h4>
+                                <p>Switch between light and dark theme</p>
+                            </div>
+                            <label class="switch" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="themeToggleSetting" style="transform: scale(1.5);">
+                            </label>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-info">
+                                <h4>Currency</h4>
+                                <p>Default currency for all displays</p>
+                            </div>
+                            <select class="form-input" style="max-width: 150px;">
+                                <option value="INR">INR (₹)</option>
+                                <option value="USD">USD ($)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Data Management Section -->
+                    <div class="settings-section">
+                        <h3 style="margin-bottom: var(--spacing-md);">Data Management</h3>
+                        <div class="settings-row">
+                            <div class="settings-info">
+                                <h4>Export Data</h4>
+                                <p>Download all your financial data as CSV</p>
+                            </div>
+                            <button class="btn btn-outline" onclick="exportData()">Export CSV</button>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-info">
+                                <h4>Danger Zone</h4>
+                                <p>Permanently delete your account and all data</p>
+                            </div>
+                            <button class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);">Delete Account</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="supabase/config.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!window.supabaseClient) return;
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (session) {
+                document.getElementById('settingEmail').textContent = session.user.email;
+            }
+
+            // Sync theme toggle with actual theme
+            const themeToggleSetting = document.getElementById('themeToggleSetting');
+            themeToggleSetting.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+            
+            themeToggleSetting.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.documentElement.removeAttribute('data-theme');
+                    localStorage.setItem('theme', 'light');
+                }
+            });
+        });
+
+        function exportData() {
+            alert('Exporting data to CSV... (This feature requires converting JSON to CSV and triggering a download blob)');
+        }
+    </script>
+</body>
+</html>
