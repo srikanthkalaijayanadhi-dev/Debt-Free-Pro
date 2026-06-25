@@ -16,12 +16,12 @@ const initDatabase = async () => {
             .from('profiles')
             .select('monthly_income')
             .eq('id', userId)
-            .single();
+            .maybeSingle();
 
         if (profileError) throw profileError;
 
-        // If monthly_income is 0, we assume it's a new user and we need to seed
-        if (profile && profile.monthly_income == 0) {
+        // If no profile or monthly_income is 0, we assume it's a new user and we need to seed
+        if (!profile || profile.monthly_income == 0) {
             console.log('New account detected. Seeding initial data...');
             await seedInitialData(userId);
         }
@@ -32,14 +32,15 @@ const initDatabase = async () => {
 
 const seedInitialData = async (userId) => {
     try {
-        // 1. Update Profile
-        await window.supabaseClient.from('profiles').update({
+        // 1. Upsert Profile (creates if doesn't exist, updates if it does)
+        await window.supabaseClient.from('profiles').upsert({
+            id: userId,
             name: 'Srikanth',
             country: 'India',
             currency: 'INR',
             monthly_income: 250000,
             monthly_available_profit: 200000
-        }).eq('id', userId);
+        });
 
         // 2. Insert Loans
         const initialLoans = [
