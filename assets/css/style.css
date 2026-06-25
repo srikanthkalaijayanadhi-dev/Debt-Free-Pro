@@ -260,16 +260,17 @@ a:hover {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
-    padding: 8px 16px;
+    padding: 6px 12px;
     background: var(--surface-color);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-pill);
     cursor: pointer;
+    max-width: 200px;
 }
 
 .user-avatar {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--primary), var(--secondary));
     color: white;
@@ -277,7 +278,17 @@ a:hover {
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.user-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary);
 }
 
 .mobile-menu-btn {
@@ -418,12 +429,11 @@ a:hover {
 }
 
 .animate-fade-in {
-    animation: fadeIn 0.6s var(--transition-smooth) forwards;
+    animation: fadeIn 0.6s ease-out forwards;
 }
 
 .animate-slide-up {
-    animation: slideUp 0.6s var(--transition-bounce) forwards;
-    opacity: 0;
+    animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 @keyframes fadeIn {
