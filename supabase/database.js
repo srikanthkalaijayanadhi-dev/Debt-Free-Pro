@@ -43,15 +43,15 @@ const seedInitialData = async (userId) => {
 
         // 2. Insert Loans
         const initialLoans = [
-            { user_id: userId, name: 'Home Loan', type: 'monthly', emi_amount: 135000, priority: 'High', status: 'Active' },
-            { user_id: userId, name: 'Dad EMI', type: 'monthly', emi_amount: 14600, priority: 'High', status: 'Active' },
+            { user_id: userId, name: 'Home Loan', type: 'monthly', emi_amount: 135000, priority: 'Very High', status: 'Active' },
+            { user_id: userId, name: 'Dad EMI', type: 'monthly', emi_amount: 14600, priority: 'Medium', status: 'Active' },
             { user_id: userId, name: 'Mom EMI', type: 'monthly', emi_amount: 6000, priority: 'Medium', status: 'Active' },
             { user_id: userId, name: 'My EMI', type: 'monthly', emi_amount: 6000, priority: 'Medium', status: 'Active' },
-            { user_id: userId, name: 'Pandiyan Monthly Finance', type: 'monthly', emi_amount: 7500, priority: 'Medium', status: 'Active' },
+            { user_id: userId, name: 'Pandiyan Monthly Finance', type: 'monthly', emi_amount: 7500, priority: 'High', status: 'Active' },
             { user_id: userId, name: 'BharatPe', type: 'daily', emi_amount: 421, priority: 'High', status: 'Active' },
-            { user_id: userId, name: 'Pandiyan Finance', type: 'daily', emi_amount: 1500, priority: 'High', status: 'Active' },
-            { user_id: userId, name: 'Daily Finance 700', type: 'daily', emi_amount: 700, priority: 'Medium', status: 'Active' },
-            { user_id: userId, name: 'Daily Finance 1000', type: 'daily', emi_amount: 1000, priority: 'Medium', status: 'Active' }
+            { user_id: userId, name: 'Pandiyan Daily Finance', type: 'daily', emi_amount: 1500, priority: 'Very High', status: 'Active' },
+            { user_id: userId, name: 'Finance Loan 700', type: 'daily', emi_amount: 700, priority: 'High', status: 'Active' },
+            { user_id: userId, name: 'Finance Loan 1000', type: 'daily', emi_amount: 1000, priority: 'High', status: 'Active' }
         ];
         await window.supabaseClient.from('loans').insert(initialLoans);
 
@@ -60,16 +60,19 @@ const seedInitialData = async (userId) => {
             { user_id: userId, category: 'Electricity', amount: 2000, notes: 'Monthly Bill' },
             { user_id: userId, category: 'Gas', amount: 6500, notes: 'Monthly Bill' },
             { user_id: userId, category: 'Mobile & Internet', amount: 2000, notes: 'Monthly Bill' },
-            { user_id: userId, category: 'Daily Expenses', amount: 1750, notes: 'Average Daily Expense' }
+            { user_id: userId, category: 'Daily Expenses', amount: 1750, notes: 'Food, Fuel, Travel, Personal Expenses, Business Miscellaneous' }
         ];
         await window.supabaseClient.from('expenses').insert(initialExpenses);
 
         // 4. Insert Goals
         const initialGoals = [
-            { user_id: userId, name: 'Become Debt Free', status: 'In Progress' },
-            { user_id: userId, name: 'Increase Savings', status: 'In Progress' },
-            { user_id: userId, name: 'Emergency Fund', status: 'In Progress' },
-            { user_id: userId, name: 'Business Growth', status: 'In Progress' }
+            { user_id: userId, name: 'Become Completely Debt Free', status: 'In Progress' },
+            { user_id: userId, name: 'Increase Monthly Savings', status: 'In Progress' },
+            { user_id: userId, name: 'Improve Business Cash Flow', status: 'In Progress' },
+            { user_id: userId, name: 'Reduce High Interest Loans', status: 'In Progress' },
+            { user_id: userId, name: 'Track Every Rupee', status: 'In Progress' },
+            { user_id: userId, name: 'Build Emergency Fund', status: 'In Progress' },
+            { user_id: userId, name: 'Increase Monthly Profit', status: 'In Progress' }
         ];
         await window.supabaseClient.from('goals').insert(initialGoals);
 
