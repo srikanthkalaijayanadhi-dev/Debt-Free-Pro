@@ -306,11 +306,9 @@
 
         window.editLoan = async (id) => {
             if (!window.supabaseClient) return;
-            const { data, error } = await window.supabaseClient.from('loans').select('*').eq('id', id).single();
-            if (error) {
-                alert(error.message);
-                return;
-            }
+            const { data, error } = await window.supabaseClient.from('loans').select('*').eq('id', id).maybeSingle();
+            if (error) return alert(error.message);
+            if (!data) return alert("Loan not found! It may have been deleted. Please refresh the page.");
             
             document.getElementById('loanId').value = data.id;
             document.getElementById('loanName').value = data.name;

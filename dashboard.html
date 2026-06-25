@@ -205,38 +205,92 @@
             <h2 id="modalTitle" style="margin-bottom: var(--spacing-lg);">Edit Loan</h2>
             <form id="loanForm">
                 <input type="hidden" id="loanId">
-                <div class="form-group">
-                    <label class="form-label">Loan Name</label>
-                    <input type="text" class="form-input" id="loanName" required>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label class="form-label">Loan Name</label>
+                        <input type="text" class="form-input" id="loanName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Original Principal</label>
+                        <input type="number" class="form-input" id="loanPrincipal" required min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Outstanding Balance</label>
+                        <input type="number" class="form-input" id="loanOutstanding" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Amount Already Paid</label>
+                        <input type="number" class="form-input" id="loanPaid" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">EMI Type</label>
+                        <select class="form-input" id="loanType" required>
+                            <option value="monthly">Monthly</option>
+                            <option value="daily">Daily Finance</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">EMI / Daily Amount (₹)</label>
+                        <input type="number" class="form-input" id="loanEmi" required min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Interest Rate (%)</label>
+                        <input type="number" step="0.01" class="form-input" id="loanInterest" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Tenure (Months)</label>
+                        <input type="number" class="form-input" id="loanTenure" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Next Due Date</label>
+                        <input type="date" class="form-input" id="loanDueDate">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select class="form-input" id="loanStatus">
+                            <option value="Active">Active</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Priority</label>
+                        <select class="form-input" id="loanPriority">
+                            <option value="Very High">Very High</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-input" id="loanNotes" rows="2"></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">EMI Type</label>
-                    <select class="form-input" id="loanType" required>
-                        <option value="monthly">Monthly</option>
-                        <option value="daily">Daily Finance</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">EMI / Daily Amount (₹)</label>
-                    <input type="number" class="form-input" id="loanEmi" required min="1">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Original Principal / Total Loan</label>
-                    <input type="number" class="form-input" id="loanPrincipal" required min="1">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Priority</label>
-                    <select class="form-input" id="loanPriority">
-                        <option value="High">High</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Low">Low</option>
-                    </select>
-                </div>
+                
                 <div style="display: flex; gap: var(--spacing-md); margin-top: var(--spacing-xl);">
+                    <button type="button" class="btn btn-outline" style="flex:1; border-color: var(--danger); color: var(--danger); display: none;" id="deleteLoanBtn">Delete</button>
                     <button type="button" class="btn btn-outline" style="flex:1;" id="cancelModalBtn">Cancel</button>
-                    <button type="submit" class="btn btn-primary" style="flex:1;">Save Changes</button>
+                    <button type="submit" class="btn btn-primary" style="flex:2;">Save Changes</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="historyModal">
+        <div class="glass-card modal-card" style="max-width: 400px;">
+            <h2 id="historyModalTitle" style="margin-bottom: var(--spacing-lg);">Payment History</h2>
+            <div id="historyList" style="display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto;">
+                <!-- History items will be injected here -->
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: var(--spacing-xl);">
+                <button type="button" class="btn btn-outline" style="width: 100%;" id="closeHistoryModalBtn">Close</button>
+            </div>
         </div>
     </div>
 
@@ -247,6 +301,7 @@
     <script>
         let loanDistributionChartInstance = null;
         let progressChartInstance = null;
+        let globalLogs = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchDashboardData();
@@ -256,12 +311,34 @@
                 document.getElementById('cancelModalBtn').addEventListener('click', () => modal.classList.remove('active'));
             }
 
+            const historyModal = document.getElementById('historyModal');
+            if (document.getElementById('closeHistoryModalBtn')) {
+                document.getElementById('closeHistoryModalBtn').addEventListener('click', () => historyModal.classList.remove('active'));
+            }
+
             if (document.getElementById('addLoanBtn')) {
                 document.getElementById('addLoanBtn').addEventListener('click', () => {
                     document.getElementById('loanForm').reset();
                     document.getElementById('loanId').value = '';
                     document.getElementById('modalTitle').textContent = 'Add New Loan';
+                    document.getElementById('deleteLoanBtn').style.display = 'none';
                     modal.classList.add('active');
+                });
+            }
+
+            if (document.getElementById('deleteLoanBtn')) {
+                document.getElementById('deleteLoanBtn').addEventListener('click', async () => {
+                    const loanId = document.getElementById('loanId').value;
+                    if (!loanId) return;
+                    if (!confirm('Are you sure you want to completely delete this loan? This action cannot be undone.')) return;
+                    
+                    const res = await window.supabaseClient.from('loans').delete().eq('id', loanId);
+                    if (res.error) {
+                        alert(res.error.message);
+                    } else {
+                        modal.classList.remove('active');
+                        fetchDashboardData();
+                    }
                 });
             }
 
@@ -276,9 +353,17 @@
                         user_id: session.user.id,
                         name: document.getElementById('loanName').value,
                         type: document.getElementById('loanType').value,
-                        emi_amount: document.getElementById('loanEmi').value,
-                        principal_amount: document.getElementById('loanPrincipal').value || 0,
+                        emi_amount: document.getElementById('loanEmi').value || 0,
+                        original_amount: document.getElementById('loanPrincipal').value || 0,
+                        principal_amount: document.getElementById('loanPrincipal').value || 0, // Fallback
+                        outstanding_balance: document.getElementById('loanOutstanding').value || 0,
+                        amount_paid: document.getElementById('loanPaid').value || 0,
+                        interest_rate: document.getElementById('loanInterest').value || 0,
+                        duration_months: document.getElementById('loanTenure').value || null,
+                        due_date: document.getElementById('loanDueDate').value || null,
+                        status: document.getElementById('loanStatus').value,
                         priority: document.getElementById('loanPriority').value,
+                        notes: document.getElementById('loanNotes').value
                     };
 
                     let error;
@@ -312,9 +397,12 @@
                 const { data: profile } = await window.supabaseClient.from('profiles').select('*').eq('id', userId).maybeSingle();
                 const { data: loans } = await window.supabaseClient.from('loans').select('*').eq('user_id', userId);
                 const { data: expenses } = await window.supabaseClient.from('expenses').select('*').eq('user_id', userId);
+                const { data: logs } = await window.supabaseClient.from('daily_finance_logs').select('*').eq('user_id', userId);
+
+                globalLogs = logs || [];
 
                 if (profile && loans && expenses) {
-                    calculateAndRender(profile, loans, expenses);
+                    calculateAndRender(profile, loans, expenses, globalLogs);
                 } else {
                     document.getElementById('metricsGrid').innerHTML = '<p>Waiting for data...</p>';
                 }
@@ -325,17 +413,46 @@
 
         window.editLoan = async (id) => {
             if (!window.supabaseClient) return;
-            const { data, error } = await window.supabaseClient.from('loans').select('*').eq('id', id).single();
+            const { data, error } = await window.supabaseClient.from('loans').select('*').eq('id', id).maybeSingle();
             if (error) return alert(error.message);
+            if (!data) return alert("Loan not found! It may have been deleted. Please refresh the page.");
             
             document.getElementById('loanId').value = data.id;
             document.getElementById('loanName').value = data.name;
             document.getElementById('loanType').value = data.type;
             document.getElementById('loanEmi').value = data.emi_amount;
-            document.getElementById('loanPrincipal').value = data.original_amount || data.principal_amount; // Use original if available
-            document.getElementById('loanPriority').value = data.priority;
+            document.getElementById('loanPrincipal').value = data.original_amount || data.principal_amount || 0;
+            document.getElementById('loanOutstanding').value = data.outstanding_balance || 0;
+            document.getElementById('loanPaid').value = data.amount_paid || 0;
+            document.getElementById('loanInterest').value = data.interest_rate || 0;
+            document.getElementById('loanTenure').value = data.duration_months || '';
+            document.getElementById('loanDueDate').value = data.due_date || '';
+            document.getElementById('loanStatus').value = data.status || 'Active';
+            document.getElementById('loanPriority').value = data.priority || 'Medium';
+            document.getElementById('loanNotes').value = data.notes || '';
             
+            document.getElementById('modalTitle').textContent = 'Edit Loan';
+            document.getElementById('deleteLoanBtn').style.display = 'block';
             document.getElementById('loanModal').classList.add('active');
+        };
+
+        window.viewPaymentHistory = (id) => {
+            const historyModal = document.getElementById('historyModal');
+            const historyList = document.getElementById('historyList');
+            const loanLogs = globalLogs.filter(lg => lg.loan_id === id);
+            
+            if (loanLogs.length === 0) {
+                historyList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px 0;">No payment history found for this loan.</p>';
+            } else {
+                loanLogs.sort((a, b) => new Date(b.date) - new Date(a.date));
+                historyList.innerHTML = loanLogs.map(lg => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                        <span style="color: var(--text-secondary); font-size: 0.9rem;">${new Date(lg.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        <strong style="color: var(--success);">${formatCurrency(lg.amount_paid)}</strong>
+                    </div>
+                `).join('');
+            }
+            historyModal.classList.add('active');
         };
 
         window.logPayment = async (loanId, amount) => {
@@ -349,7 +466,11 @@
             }]);
 
             // For demo purposes, we also artificially update the loan's amount_paid directly 
-            const { data: currentLoan } = await window.supabaseClient.from('loans').select('amount_paid').eq('id', loanId).single();
+            const { data: currentLoan } = await window.supabaseClient.from('loans').select('amount_paid').eq('id', loanId).maybeSingle();
+            if (!currentLoan) {
+                alert("Loan not found! It may have been deleted. Please refresh the page.");
+                return;
+            }
             if (currentLoan) {
                 await window.supabaseClient.from('loans').update({ amount_paid: Number(currentLoan.amount_paid || 0) + Number(amount) }).eq('id', loanId);
             }
@@ -358,7 +479,7 @@
             else fetchDashboardData(); // Auto update without refresh
         };
 
-        function calculateAndRender(profile, loans, expenses) {
+        function calculateAndRender(profile, loans, expenses, logs) {
             let totalActiveLoans = 0;
             let totalOriginalAmount = 0;
             let totalAmountPaid = 0;
@@ -412,12 +533,20 @@
                 loanDistributionData.push(outstanding);
                 loanDistributionColors.push(colorPalette[index % colorPalette.length]);
 
+                let loanLogs = logs.filter(lg => lg.loan_id === loan.id);
+                let lastPaymentDate = null;
+                if (loanLogs.length > 0) {
+                    loanLogs.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    lastPaymentDate = new Date(loanLogs[0].date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                }
+
                 return {
                     ...loan,
                     original,
                     totalPaidThisLoan,
                     outstanding,
                     progressPct,
+                    lastPaymentDate,
                     color: colorPalette[index % colorPalette.length]
                 };
             });
@@ -492,16 +621,36 @@
                                 <span class="loan-stat-label">${loan.type === 'daily' ? 'Daily Payment' : 'Monthly EMI'}</span>
                                 <span class="loan-stat-value">${formatCurrency(loan.emi_amount)}</span>
                             </div>
+                            <div class="loan-stat-item">
+                                <span class="loan-stat-label">Interest Rate</span>
+                                <span class="loan-stat-value">${loan.interest_rate > 0 ? loan.interest_rate + '%' : 'N/A'}</span>
+                            </div>
+                            <div class="loan-stat-item">
+                                <span class="loan-stat-label">Remaining</span>
+                                <span class="loan-stat-value">${(100 - loan.progressPct).toFixed(1)}%</span>
+                            </div>
                         </div>
 
-                        <div class="action-row">
-                            <button class="btn btn-outline" onclick="editLoan('${loan.id}')">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Last Payment:</span>
+                                <strong style="color: var(--text-primary);">${loan.lastPaymentDate || 'No payments yet'}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Next Due Date:</span>
+                                <strong style="color: var(--text-primary);">${loan.due_date ? new Date(loan.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not set'}</strong>
+                            </div>
+                        </div>
+
+                        <div class="action-row" style="margin-top: 16px;">
+                            <button class="btn btn-outline" onclick="editLoan('${loan.id}')" style="flex:1;">
                                 Edit
                             </button>
-                            <button class="btn btn-primary" onclick="logPayment('${loan.id}', ${loan.emi_amount})">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            <button class="btn btn-primary" onclick="logPayment('${loan.id}', ${loan.emi_amount})" style="flex:1;">
                                 Add Payment
+                            </button>
+                            <button class="btn btn-outline" onclick="viewPaymentHistory('${loan.id}')" style="flex:1;">
+                                History
                             </button>
                         </div>
                     </div>
