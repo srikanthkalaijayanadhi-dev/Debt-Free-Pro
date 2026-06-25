@@ -232,10 +232,46 @@
             let totalActiveLoans = 0;
             let highestDailyLoan = null;
 
+            let totalOutstandingDebt = 0;
+            let totalOriginalAmount = 0;
+            let totalAmountPaid = 0;
+
+            let homeLoan = null;
+            let goldLoan = null;
+            let bharatPeLoan = null;
+            let pandiyanLoan = null;
+
             loans.forEach(loan => {
                 if (loan.status === 'Active') {
                     totalActiveLoans++;
-                    let amt = Number(loan.emi_amount);
+                    let amt = Number(loan.emi_amount) || 0;
+                    
+                    let original = Number(loan.original_amount) || 0;
+                    let outstanding = Number(loan.outstanding_balance) || 0;
+                    let paid = Number(loan.amount_paid) || 0;
+                    let down = Number(loan.down_payment) || 0;
+                    let monthsPaid = Number(loan.months_paid) || 0;
+
+                    // Fallback calculations for the UI display
+                    if (original > 0 && outstanding === 0 && (paid > 0 || (monthsPaid > 0 && amt > 0))) {
+                        let totalPaid = paid + down + (monthsPaid * amt);
+                        outstanding = original - totalPaid;
+                    }
+
+                    // For AI and Progress
+                    if (loan.name.includes('Home Loan')) homeLoan = { ...loan, outstanding };
+                    if (loan.name.includes('Gold Loan')) goldLoan = { ...loan, outstanding };
+                    if (loan.name.includes('BharatPe')) bharatPeLoan = { ...loan, outstanding };
+                    if (loan.name.includes('Pandiyan')) pandiyanLoan = { ...loan, outstanding };
+
+                    totalOutstandingDebt += outstanding;
+                    totalOriginalAmount += original;
+                    
+                    // Track amount paid
+                    let currentLoanPaid = paid + down;
+                    if (paid === 0 && monthsPaid > 0) currentLoanPaid += (monthsPaid * amt);
+                    totalAmountPaid += currentLoanPaid;
+
                     if (loan.type === 'daily') {
                         dailyLoanPayments += amt;
                         monthlyLoanPayments += (amt * 30);
@@ -255,7 +291,6 @@
 
             expenses.forEach(exp => {
                 let amt = Number(exp.amount);
-                // "Average Daily Expense" is seeded as 'Daily Expenses' category
                 if (exp.category === 'Daily Expenses' || exp.notes?.includes('Daily')) {
                     todayExpense += amt;
                     monthlyExpenses += (amt * 30);
@@ -265,50 +300,45 @@
             });
 
             // 3. Profile Data
-            const monthlyIncome = Number(profile.monthly_income);
+            const monthlyIncome = Number(profile.monthly_income) || 0;
 
             // 4. Derived Calculations
-            const remainingMonthlyCash = monthlyIncome - monthlyExpenses - monthlyLoanPayments;
-            const cashFlow = remainingMonthlyCash; // Synonymous in this context
-            const monthlyProfit = remainingMonthlyCash; // Synonymous
+            const totalMonthlyOutflow = monthlyExpenses + monthlyLoanPayments;
+            const remainingMonthlyCash = monthlyIncome > 0 ? (monthlyIncome - totalMonthlyOutflow) : 0; 
+            const cashFlow = monthlyIncome > 0 ? remainingMonthlyCash : -totalMonthlyOutflow;
             
-            const todayLoanPayment = dailyLoanPayments; // Assuming only strictly daily loans happen "today"
-            
-            // Outstanding Debt - extrapolate from loans if principal is missing
-            let outstandingDebt = loans.reduce((acc, l) => acc + (Number(l.principal_amount) || Number(l.emi_amount) * 12), 0);
-            if (outstandingDebt < 100000) outstandingDebt = 4500000; // Fallback to simulated large debt
-
             const debtRatio = monthlyIncome > 0 ? ((monthlyLoanPayments / monthlyIncome) * 100).toFixed(1) : 0;
             const savingsRatio = monthlyIncome > 0 ? ((remainingMonthlyCash / monthlyIncome) * 100).toFixed(1) : 0;
-            const financialHealthScore = Math.max(0, Math.min(100, 100 - Number(debtRatio) + (Number(savingsRatio)/2))).toFixed(0);
             
-            const yearlyExpenseProjection = monthlyExpenses * 12;
-            const yearlyLoanProjection = monthlyLoanPayments * 12;
-            const netWorth = (cashFlow * 12) - outstandingDebt;
-            const emergencyFundProgress = '0%'; // Hardcoded start
-            const budgetRemaining = remainingMonthlyCash;
+            // Health Score: Base 100 - (DebtRatio) + Savings Ratio/2
+            let financialHealthScore = 100 - Number(debtRatio) + (Number(savingsRatio)/2);
+            if (monthlyIncome === 0) financialHealthScore = 40; // Default for missing income
+            financialHealthScore = Math.max(0, Math.min(100, financialHealthScore)).toFixed(0);
 
-            // Render 19 Widgets
+            // Progress Calculations
+            const calcProgress = (loan) => loan && loan.original_amount > 0 ? (((loan.original_amount - loan.outstanding) / loan.original_amount) * 100).toFixed(1) + '%' : '0%';
+            
+            let homeLoanProgress = calcProgress(homeLoan);
+            let goldLoanProgress = calcProgress(goldLoan);
+            let bharatPeProgress = calcProgress(bharatPeLoan);
+            let pandiyanProgress = calcProgress(pandiyanLoan);
+            let totalDebtFreeProgress = totalOriginalAmount > 0 ? ((totalOriginalAmount - totalOutstandingDebt) / totalOriginalAmount * 100).toFixed(1) + '%' : '0%';
+
+            // Render Widgets
             const metrics = [
-                { title: "Monthly Income", value: formatCurrency(monthlyIncome), class: "metric-success" },
-                { title: "Monthly Expenses", value: formatCurrency(monthlyExpenses), class: "metric-danger" },
-                { title: "Monthly Loan Payments", value: formatCurrency(monthlyLoanPayments), class: "metric-danger" },
-                { title: "Daily Loan Payments", value: formatCurrency(dailyLoanPayments), class: "metric-accent" },
-                { title: "Remaining Monthly Cash", value: formatCurrency(remainingMonthlyCash), class: "metric-highlight" },
-                { title: "Today's Expense", value: formatCurrency(todayExpense), class: "metric-danger" },
-                { title: "Today's Loan Payment", value: formatCurrency(todayLoanPayment), class: "metric-accent" },
-                { title: "Total Active Loans", value: totalActiveLoans, class: "" },
-                { title: "Outstanding Debt", value: formatCurrency(outstandingDebt), class: "metric-danger" },
-                { title: "Cash Flow", value: formatCurrency(cashFlow), class: cashFlow >= 0 ? "metric-success" : "metric-danger" },
+                { title: "Total Outstanding Debt", value: formatCurrency(totalOutstandingDebt), class: "metric-danger" },
+                { title: "Total Amount Already Paid", value: formatCurrency(totalAmountPaid), class: "metric-success" },
+                { title: "Remaining Loan Balance", value: formatCurrency(totalOutstandingDebt), class: "metric-danger" },
+                { title: "Home Loan Progress", value: homeLoanProgress, class: "metric-highlight" },
+                { title: "Gold Loan Status", value: goldLoanProgress, class: "metric-highlight" },
+                { title: "BharatPe Progress", value: bharatPeProgress, class: "metric-highlight" },
+                { title: "Pandiyan Finance Progress", value: pandiyanProgress, class: "metric-highlight" },
+                { title: "Today's Total Daily Payment", value: formatCurrency(dailyLoanPayments), class: "metric-accent" },
+                { title: "Monthly EMI Total", value: formatCurrency(monthlyLoanPayments), class: "metric-danger" },
                 { title: "Financial Health Score", value: financialHealthScore + "/100", class: "metric-highlight" },
-                { title: "Debt Ratio", value: debtRatio + "%", class: "metric-danger" },
-                { title: "Savings Ratio", value: savingsRatio + "%", class: "metric-success" },
-                { title: "Net Worth", value: formatCurrency(netWorth), class: "" },
-                { title: "Emergency Fund Progress", value: emergencyFundProgress, class: "metric-highlight" },
-                { title: "Budget Remaining", value: formatCurrency(budgetRemaining), class: "metric-success" },
-                { title: "Monthly Profit", value: formatCurrency(monthlyProfit), class: "metric-success" },
-                { title: "Yearly Expense Projection", value: formatCurrency(yearlyExpenseProjection), class: "" },
-                { title: "Yearly Loan Projection", value: formatCurrency(yearlyLoanProjection), class: "" }
+                { title: "Debt-Free Progress", value: totalDebtFreeProgress, class: "metric-success" },
+                { title: "Monthly Cash Flow", value: formatCurrency(cashFlow), class: cashFlow >= 0 ? "metric-success" : "metric-danger" },
+                { title: "High Priority Loans", value: loans.filter(l => l.priority === 'Very High' || l.priority === 'High').length, class: "metric-danger" }
             ];
 
             const grid = document.getElementById('metricsGrid');
@@ -321,35 +351,55 @@
 
             // Render AI Advisor
             const aiList = document.getElementById('aiRecommendations');
-            let estimatedMonths = outstandingDebt / (monthlyLoanPayments || 1);
+            let estimatedMonths = totalOutstandingDebt / (monthlyLoanPayments || 1);
             let targetDate = new Date();
             targetDate.setMonth(targetDate.getMonth() + estimatedMonths);
 
             let warnings = [];
             
-            // 1. Which loan closed first
+            // AI Recommendations:
+            // 1. Which loan should be closed first
             if (highestDailyLoan) {
-                warnings.push(`<strong>${highestDailyLoan.name}</strong> is costing the most daily (${formatCurrency(highestDailyLoan.emi_amount)}/day). Prioritize closing this to free up ${formatCurrency(highestDailyLoan.emi_amount * 30)} per month.`);
+                warnings.push(`<strong>${highestDailyLoan.name}</strong> costs the most daily (${formatCurrency(highestDailyLoan.emi_amount)}/day) and should be closed first. Closing this frees up ${formatCurrency(highestDailyLoan.emi_amount * 30)} every month.`);
             }
 
-            // 2. Total loan burden
-            warnings.push(`Your total monthly loan burden is exactly <strong>${formatCurrency(monthlyLoanPayments)}</strong>, leaving you with <strong>${formatCurrency(remainingMonthlyCash)}</strong> after all expenses and loans.`);
-
-            // 3. Spending warning
-            if (Number(debtRatio) > 60) {
-                warnings.push(`<span style="color:var(--danger)">Warning:</span> Your Debt Ratio is very high (${debtRatio}%). Avoid taking any new daily finances.`);
+            // 2. Highest financial burden
+            let highestBurdenLoan = loans.reduce((max, loan) => (Number(loan.outstanding_balance) > Number(max.outstanding_balance) ? loan : max), loans[0]);
+            if (highestBurdenLoan) {
+                warnings.push(`<strong>${highestBurdenLoan.name}</strong> has the highest overall financial burden (${formatCurrency(highestBurdenLoan.outstanding_balance)} outstanding).`);
             }
 
-            // 4. Budget recommendation
-            if (todayExpense > 1000) {
-                warnings.push(`Your average daily expense is ${formatCurrency(todayExpense)}. Reducing this by just 10% will save you ${formatCurrency((todayExpense*0.1)*30)} extra every month!`);
+            // 3. Most expensive monthly
+            let highestMonthlyEmi = loans.reduce((max, loan) => {
+                let monthlyCost = loan.type === 'daily' ? Number(loan.emi_amount) * 30 : Number(loan.emi_amount);
+                let maxCost = max.type === 'daily' ? Number(max.emi_amount) * 30 : Number(max.emi_amount);
+                return monthlyCost > maxCost ? loan : max;
+            }, loans[0]);
+            
+            if (highestMonthlyEmi) {
+                let monthlyCost = highestMonthlyEmi.type === 'daily' ? Number(highestMonthlyEmi.emi_amount) * 30 : Number(highestMonthlyEmi.emi_amount);
+                warnings.push(`<strong>${highestMonthlyEmi.name}</strong> costs the most every month at ${formatCurrency(monthlyCost)}.`);
             }
 
-            // 5. Estimated date
-            warnings.push(`If you maintain exactly these payments, your estimated debt-free date is <strong>${targetDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</strong>.`);
+            // 4. Extra payment / Savings required
+            if (cashFlow < 0 && monthlyIncome > 0) {
+                warnings.push(`You currently have a negative cash flow. You need to reduce your spending by at least <strong>${formatCurrency(Math.abs(cashFlow))}</strong> just to break even.`);
+            } else if (cashFlow > 0) {
+                warnings.push(`Adding an extra payment of <strong>${formatCurrency(cashFlow * 0.5)}</strong> (50% of your cash flow) towards your highest priority loan will significantly reduce your debt timeline.`);
+                
+                let fastMonths = totalOutstandingDebt / (monthlyLoanPayments + (cashFlow * 0.5));
+                warnings.push(`By doing this, you can become completely debt-free ${Math.ceil(estimatedMonths - fastMonths)} months sooner!`);
+            }
 
-            // 6. Score
-            warnings.push(`Your Monthly Financial Score is <strong>${financialHealthScore}/100</strong>. ${Number(financialHealthScore) > 50 ? 'You are on the right track!' : 'Requires urgent restructuring.'}`);
+            // 5. Estimated debt-free date
+            if (estimatedMonths < 1200) {
+                warnings.push(`At your current rate, your estimated debt-free date is <strong>${targetDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</strong>.`);
+            }
+
+            // 6. Spending reduction suggestions
+            if (todayExpense > 1500) {
+                warnings.push(`Your average daily expense (${formatCurrency(todayExpense)}) is very high. Cutting this by 30% will instantly generate ${formatCurrency(todayExpense * 0.3 * 30)} in extra monthly savings.`);
+            }
 
             aiList.innerHTML = warnings.map(w => `<li>${w}</li>`).join('');
         }
