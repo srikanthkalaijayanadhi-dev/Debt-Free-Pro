@@ -31,9 +31,11 @@ const checkAuth = async () => {
     } else {
         // Load User Name into Header
         const userNameEl = document.getElementById('userName');
-        if (userNameEl) {
-            userNameEl.textContent = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
-        }
+        const userInitialEl = document.getElementById('userInitial');
+        const displayName = session.user.user_metadata?.full_name || session.user.email.split('@')[0];
+        
+        if (userNameEl) userNameEl.textContent = displayName;
+        if (userInitialEl) userInitialEl.textContent = displayName.charAt(0).toUpperCase();
     }
 };
 
