@@ -2,12 +2,27 @@
 -- DEBT FREE PRO - Supabase PostgreSQL Schema
 -- ==========================================================================
 
+-- Drop existing tables to allow clean schema update
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user CASCADE;
+
+DROP TABLE IF EXISTS goals CASCADE;
+DROP TABLE IF EXISTS budgets CASCADE;
+DROP TABLE IF EXISTS daily_finance_logs CASCADE;
+DROP TABLE IF EXISTS expenses CASCADE;
+DROP TABLE IF EXISTS incomes CASCADE;
+DROP TABLE IF EXISTS loans CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+
 -- 1. Profiles Table
 CREATE TABLE profiles (
     id UUID REFERENCES auth.users(id) PRIMARY KEY,
     name TEXT,
     country TEXT DEFAULT 'India',
     currency TEXT DEFAULT 'INR',
+    primary_goal TEXT DEFAULT 'Become Debt Free',
+    secondary_goal TEXT DEFAULT 'Increase Monthly Cash Flow',
+    status TEXT DEFAULT 'Active',
     monthly_income NUMERIC DEFAULT 0,
     monthly_available_profit NUMERIC DEFAULT 0,
     financial_health_score INTEGER DEFAULT 100,
@@ -21,6 +36,12 @@ CREATE TABLE loans (
     user_id UUID REFERENCES auth.users(id) NOT NULL,
     name TEXT NOT NULL,
     type TEXT CHECK (type IN ('monthly', 'daily')) NOT NULL,
+    category TEXT,
+    collateral TEXT,
+    original_amount NUMERIC DEFAULT 0,
+    amount_paid NUMERIC DEFAULT 0,
+    down_payment NUMERIC DEFAULT 0,
+    months_paid INTEGER DEFAULT 0,
     principal_amount NUMERIC DEFAULT 0,
     outstanding_balance NUMERIC DEFAULT 0,
     emi_amount NUMERIC NOT NULL,

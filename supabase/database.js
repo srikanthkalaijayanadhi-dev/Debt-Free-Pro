@@ -11,17 +11,16 @@ const initDatabase = async () => {
     const userId = session.user.id;
 
     try {
-        // Check if profile is already seeded
-        const { data: profile, error: profileError } = await window.supabaseClient
-            .from('profiles')
-            .select('monthly_income')
-            .eq('id', userId)
-            .maybeSingle();
+        // Check if loans exist to prevent double seeding
+        const { data: loans, error: loansError } = await window.supabaseClient
+            .from('loans')
+            .select('id')
+            .eq('user_id', userId)
+            .limit(1);
 
-        if (profileError) throw profileError;
+        if (loansError) throw loansError;
 
-        // If no profile or monthly_income is 0, we assume it's a new user and we need to seed
-        if (!profile || profile.monthly_income == 0) {
+        if (loans && loans.length === 0) {
             console.log('New account detected. Seeding initial data...');
             await seedInitialData(userId);
         }
@@ -32,50 +31,41 @@ const initDatabase = async () => {
 
 const seedInitialData = async (userId) => {
     try {
-        // 1. Upsert Profile (creates if doesn't exist, updates if it does)
+        // 1. Upsert Profile
         await window.supabaseClient.from('profiles').upsert({
             id: userId,
             name: 'Srikanth',
             country: 'India',
             currency: 'INR',
-            monthly_income: 250000,
-            monthly_available_profit: 200000
+            primary_goal: 'Become Debt Free',
+            secondary_goal: 'Increase Monthly Cash Flow',
+            status: 'Active',
+            monthly_income: 0,
+            monthly_available_profit: 0
         });
 
         // 2. Insert Loans
         const initialLoans = [
-            { user_id: userId, name: 'Home Loan', type: 'monthly', emi_amount: 135000, priority: 'Very High', status: 'Active' },
-            { user_id: userId, name: 'Dad EMI', type: 'monthly', emi_amount: 14600, priority: 'Medium', status: 'Active' },
-            { user_id: userId, name: 'Mom EMI', type: 'monthly', emi_amount: 6000, priority: 'Medium', status: 'Active' },
-            { user_id: userId, name: 'My EMI', type: 'monthly', emi_amount: 6000, priority: 'Medium', status: 'Active' },
-            { user_id: userId, name: 'Pandiyan Monthly Finance', type: 'monthly', emi_amount: 7500, priority: 'High', status: 'Active' },
-            { user_id: userId, name: 'BharatPe', type: 'daily', emi_amount: 421, priority: 'High', status: 'Active' },
-            { user_id: userId, name: 'Pandiyan Daily Finance', type: 'daily', emi_amount: 1500, priority: 'Very High', status: 'Active' },
-            { user_id: userId, name: 'Finance Loan 700', type: 'daily', emi_amount: 700, priority: 'High', status: 'Active' },
-            { user_id: userId, name: 'Finance Loan 1000', type: 'daily', emi_amount: 1000, priority: 'High', status: 'Active' }
+            { user_id: userId, name: 'Home Loan', type: 'monthly', category: 'Housing Loan', original_amount: 8000000, amount_paid: 1000000, outstanding_balance: 7000000, emi_amount: 0, priority: 'Very High', status: 'Active' },
+            { user_id: userId, name: 'Gold Loan', type: 'monthly', category: 'Secured Loan', collateral: 'Gold Jewellery', original_amount: 900000, outstanding_balance: 900000, emi_amount: 0, priority: 'High', status: 'Active' },
+            { user_id: userId, name: 'Father Finance Loan', type: 'monthly', original_amount: 140000, emi_amount: 16000, months_paid: 3, amount_paid: 48000, outstanding_balance: 92000, priority: 'High', status: 'Active' },
+            { user_id: userId, name: 'Camera Loan', type: 'monthly', original_amount: 60000, down_payment: 16000, months_paid: 4, amount_paid: 14000, outstanding_balance: 30000, emi_amount: 3500, priority: 'Medium', status: 'Active' },
+            { user_id: userId, name: 'Mother Personal Loan', type: 'monthly', original_amount: 180000, emi_amount: 6700, duration_months: 36, months_paid: 3, amount_paid: 20100, outstanding_balance: 159900, priority: 'Medium', status: 'Active' },
+            { user_id: userId, name: 'BharatPe Daily Finance', type: 'daily', category: 'Daily Collection Loan', original_amount: 150000, amount_paid: 100000, outstanding_balance: 50000, emi_amount: 421, priority: 'High', status: 'Active' },
+            { user_id: userId, name: 'Pandiyan Daily Finance', type: 'daily', category: 'Daily Collection Loan', original_amount: 276000, amount_paid: 72000, outstanding_balance: 204000, emi_amount: 1500, priority: 'Very High', status: 'Active' },
+            { user_id: userId, name: 'Daily Finance ₹700', type: 'daily', category: 'Daily Collection Loan', original_amount: 70000, months_paid: 0, amount_paid: 2800, outstanding_balance: 67200, emi_amount: 700, priority: 'High', status: 'Active' },
+            { user_id: userId, name: 'Daily Finance ₹1,000', type: 'daily', category: 'Daily Collection Loan', original_amount: 100000, amount_paid: 40000, outstanding_balance: 60000, emi_amount: 1000, priority: 'High', status: 'Active' }
         ];
         await window.supabaseClient.from('loans').insert(initialLoans);
 
         // 3. Insert Fixed Expenses (Bills)
         const initialExpenses = [
-            { user_id: userId, category: 'Electricity', amount: 2000, notes: 'Monthly Bill' },
-            { user_id: userId, category: 'Gas', amount: 6500, notes: 'Monthly Bill' },
-            { user_id: userId, category: 'Mobile & Internet', amount: 2000, notes: 'Monthly Bill' },
-            { user_id: userId, category: 'Daily Expenses', amount: 1750, notes: 'Food, Fuel, Travel, Personal Expenses, Business Miscellaneous' }
+            { user_id: userId, category: 'Electricity', amount: 2000, notes: 'Monthly Bill', date: new Date().toISOString() },
+            { user_id: userId, category: 'Mobile & Internet', amount: 2000, notes: 'Monthly Bill', date: new Date().toISOString() },
+            { user_id: userId, category: 'Gas Cylinder', amount: 6500, notes: 'Monthly Bill', date: new Date().toISOString() },
+            { user_id: userId, category: 'Daily Expenses', amount: 1750, notes: 'Average Daily Expense. Categories: Food, Fuel, Business, Travel, Personal', date: new Date().toISOString() }
         ];
         await window.supabaseClient.from('expenses').insert(initialExpenses);
-
-        // 4. Insert Goals
-        const initialGoals = [
-            { user_id: userId, name: 'Become Completely Debt Free', status: 'In Progress' },
-            { user_id: userId, name: 'Increase Monthly Savings', status: 'In Progress' },
-            { user_id: userId, name: 'Improve Business Cash Flow', status: 'In Progress' },
-            { user_id: userId, name: 'Reduce High Interest Loans', status: 'In Progress' },
-            { user_id: userId, name: 'Track Every Rupee', status: 'In Progress' },
-            { user_id: userId, name: 'Build Emergency Fund', status: 'In Progress' },
-            { user_id: userId, name: 'Increase Monthly Profit', status: 'In Progress' }
-        ];
-        await window.supabaseClient.from('goals').insert(initialGoals);
 
         console.log('Seeding completed successfully!');
         
