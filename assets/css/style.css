@@ -359,18 +359,7 @@ a:hover {
 .trend-up { color: var(--secondary); }
 .trend-down { color: var(--danger); }
 
-@media (max-width: 768px) {
-    .sidebar {
-        transform: translateX(-100%);
-    }
-    .sidebar.active {
-        transform: translateX(0);
-        box-shadow: var(--shadow-lg);
-    }
-    .mobile-menu-btn {
-        display: block;
-    }
-}
+
 
 .btn-outline {
     background-color: transparent;
@@ -486,14 +475,14 @@ td {
 }
 
 /* ==========================================================================
-   Responsive Utilities
+   Responsive Utilities & Modern Bottom Navigation
    ========================================================================== */
 @media (max-width: 768px) {
     .main-content {
         margin-left: 0;
         max-width: 100%;
         padding: var(--spacing-md);
-        padding-bottom: 80px; /* For mobile bottom nav */
+        padding-bottom: 100px; /* For mobile bottom nav */
     }
 
     /* Topbar Mobile Fixes */
@@ -522,5 +511,108 @@ td {
     
     .user-profile {
         padding: 4px; /* Tighten up just for the avatar */
+    }
+
+    .mobile-menu-btn {
+        display: none; /* Hamburger not needed with bottom nav */
+    }
+
+    /* Modern Bottom Navigation Container */
+    .sidebar {
+        transform: none; /* Remove desktop transition */
+        position: fixed;
+        bottom: 0;
+        top: auto;
+        left: 0;
+        width: 100%;
+        height: auto;
+        padding: 8px var(--spacing-xs);
+        padding-bottom: calc(8px + env(safe-area-inset-bottom));
+        background: var(--surface-color);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border-right: none;
+        border-top: 1px solid var(--border-color);
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.05);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        border-radius: 20px 20px 0 0;
+    }
+
+    [data-theme="dark"] .sidebar {
+        background: rgba(28, 28, 30, 0.90);
+        box-shadow: 0 -10px 30px rgba(0,0,0,0.4);
+    }
+
+    .sidebar-header {
+        display: none; /* Hide brand logo */
+    }
+
+    .nav-menu {
+        margin-top: 0;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-around;
+        width: 100%;
+        padding: 0;
+        overflow-x: auto;
+        scrollbar-width: none; /* Firefox */
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .nav-menu::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+    }
+
+    .nav-item {
+        margin-bottom: 0;
+        margin-top: 0 !important; /* Override explicit inline styles like logout */
+        flex: 1 1 auto;
+        min-width: 58px; /* Squeeze slightly but not too much */
+    }
+
+    .nav-link {
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 8px 2px;
+        gap: 6px;
+        font-size: 0.65rem;
+        border-radius: var(--radius-md);
+        color: var(--text-secondary);
+        position: relative;
+        font-weight: 500;
+    }
+    
+    .nav-icon {
+        margin-right: 0;
+        width: 24px;
+        height: 24px;
+        transition: transform var(--transition-smooth), fill var(--transition-smooth);
+    }
+    
+    .nav-link.active {
+        background: transparent;
+        color: var(--primary);
+        font-weight: 600;
+    }
+
+    .nav-link.active .nav-icon {
+        transform: translateY(-2px);
+        fill: var(--primary);
+        filter: drop-shadow(0 4px 6px rgba(0, 82, 255, 0.3));
+    }
+    
+    /* Elegant dot indicator for active tab */
+    .nav-link.active::after {
+        content: '';
+        position: absolute;
+        bottom: 2px;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background-color: var(--primary);
+        box-shadow: 0 0 8px var(--primary);
     }
 }
