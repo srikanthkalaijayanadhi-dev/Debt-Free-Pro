@@ -49,6 +49,8 @@ CREATE TABLE loans (
     duration_months INTEGER,
     priority TEXT DEFAULT 'Medium',
     status TEXT DEFAULT 'Active',
+    due_date DATE,
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
